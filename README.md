@@ -26,6 +26,9 @@ collections.get("collection name 2", "subcollection name 1").then(aList => ...)
 # Get a list of contents for a collection and all of its subcollections
 collections.getAll("collection name 2").then(aList => ...)
 
+# Get a flattened list of contents. aList[0] is the path and aList[1] is collection path
+collections.flattened().then(aList => ... )
+
 ```
 
 ## Format

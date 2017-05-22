@@ -18,8 +18,12 @@ function navigateJson(data, path, lastBranch = 'subcollections') {
   if (!data) {
     return {};
   }
+  if (path.length===0) {
+    return (lastBranch === 'subcollections') ? data : [];
+  }
   let obj = data;
   const lastPath = path.pop();
+  // Navigate the tree, following the path up until the last part
   for (const p of path) {
     if (p in obj && 'subcollections' in obj[p]) {
       obj = obj[p].subcollections;
@@ -27,12 +31,16 @@ function navigateJson(data, path, lastBranch = 'subcollections') {
       obj = [];
     }
   }
-  if (lastBranch === 'subcollections' && lastPath && lastPath in obj && lastBranch in obj[lastPath]) {
-    obj = obj[lastPath].subcollections;
-  } else if (lastPath && lastPath in obj) {
-    obj = ('items' in obj[lastPath]) ? obj[lastPath].items : obj[lastPath];
-  } else {
+  // Get into position for going down the last branch
+  if (lastPath && lastPath in obj) {
+    obj = obj[lastPath];
+  } else if (lastPath) {
     obj = [];
+  }
+  if (lastBranch === 'subcollections' && obj && lastBranch in obj) {
+    obj = obj.subcollections;
+  } else if (obj && lastBranch in obj) {
+    obj = obj[lastBranch];
   }
   return Promise.resolve(obj);
 }
@@ -82,6 +90,18 @@ export class Collections  extends EventEmitter {
   // Gets the entire contents (items & subcollections) of a single collection
   get(name) {
     return this.ensureData().then(data => data[name]);
+  }
+
+  // A flat array of  [{item: path}, ...] which is helpful for building reverse lookup index
+  flatten(...path) {
+    const theItems = [];
+    return this.items(...path)
+      .map(item => [item, path])
+      .then(items => theItems.push(...items))
+      .then(() => this.subcollections(...path))
+      .map(subcollection => this.flatten(...path, subcollection))
+      .each(subItems => theItems.push(...subItems))
+      .then(() => theItems);
   }
 
   // Private
