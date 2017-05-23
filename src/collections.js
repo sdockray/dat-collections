@@ -137,3 +137,5 @@ export class Collections  extends EventEmitter {
   }
 
 }
+
+export default Collections;
