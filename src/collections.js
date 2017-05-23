@@ -46,7 +46,7 @@ function navigateJson(data, path, lastBranch = 'subcollections') {
 }
 
 // Default export class
-export class Collections  extends EventEmitter {
+class Collections  extends EventEmitter {
   constructor(archive, opts) {
     super();
     if (!opts) opts = {}
