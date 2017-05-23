@@ -136,6 +136,7 @@ export default class extends EventEmitter {
     try {
       const contents = await pda.readFile(this.archive, this.fileName);
       this.data = jsonParse(contents);
+      this.emit('loaded', this)
       return this.data;
     } catch (NotFoundError) {
       console.log('File not found in archive: ' + this.fileName);
