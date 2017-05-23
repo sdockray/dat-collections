@@ -2,6 +2,15 @@ import Promise from 'bluebird';
 import EventEmitter from 'events';
 import pda from 'pauls-dat-api';
 
+// Timeout for waiting
+const timeout = function (delay) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve()
+    }, delay)
+  })
+}
+
 // Error handling for JSON parsing
 function jsonParse(str) {
   let parsed = null;
@@ -46,15 +55,15 @@ function navigateJson(data, path, lastBranch = 'subcollections') {
 }
 
 // Default export class
-class Collections  extends EventEmitter {
+export default class extends EventEmitter {
   constructor(archive, opts) {
     super();
     if (!opts) opts = {}
     this.archive = archive;
     this.fileName = opts.file ? '/' + opts.file : '/dat-collections.json';
     this.data = false;
-    this.tree = {};
-    this.listen();
+    this.pollingInterval = 1000;
+    this.archive.metadata.on('update', () => this.listen());
   }
 
   // Gets a list of top level collections
@@ -114,28 +123,34 @@ class Collections  extends EventEmitter {
     }
   }
 
-  // Loads the data
   async loadData() {
     try {
       const contents = await pda.readFile(this.archive, this.fileName);
       this.data = jsonParse(contents);
       return this.data;
-    } catch (error) {
-      console.log('unable to load data from ' + this.fileName);
+    } catch (NotFoundError) {
+      console.log('File not found in archive: ' + this.fileName);
+      console.log('If the hyperdrive has just been created, this could be a bug where dat-collections isn\'t waiting for the metadata to be loaded');
+      return [];
       // console.log(error);
     }
   }
 
   listen() {
-    const fas = pda.createFileActivityStream(this.archive, this.fileName);
-    fas.on('data', ([event, args]) => {
-      if (event === 'changed') {
-        this.loadData()
-          .then(() => this.emit('updated', this));
+    try {
+      const fas = pda.createFileActivityStream(this.archive, this.fileName);
+      console.log(`listening for changes to ${this.fileName}`);
+      if (fas) {
+        fas.on('data', ([event, args]) => {
+          if (event === 'changed') {
+            this.loadData()
+              .then(() => this.emit('updated', this));
+          }
+        });
       }
-    });
+    } catch (e) {
+      this.archive.on('ready', () => this.listen());
+    }
   }
 
 }
-
-export default Collections;

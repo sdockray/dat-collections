@@ -1,6 +1,6 @@
 {
   "name": "dat-collections",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "collections inside of a dat",
   "main": "index.js",
   "scripts": {
