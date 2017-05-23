@@ -63,7 +63,16 @@ export default class extends EventEmitter {
     this.fileName = opts.file ? '/' + opts.file : '/dat-collections.json';
     this.data = false;
     this.pollingInterval = 1000;
-    this.archive.metadata.on('update', () => this.listen());
+    // Initialize data and listener
+    this.archive.metadata.on('ready', () => {
+      if (this.archive.metadata.length) {
+        this.listen();
+        this.loadData();
+      } else {
+        this.archive.metadata.once('sync', () => this.listen());
+        this.archive.metadata.on('sync', () => this.loadData());
+      }
+    });
   }
 
   // Gets a list of top level collections

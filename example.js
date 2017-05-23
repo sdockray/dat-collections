@@ -24,13 +24,15 @@ c.items('bad things', 'could be good things').then(data => console.log('could be
 c.allItems('bad things').then(data => console.log('all items', data)).catch(() => console.log('error'));
 */
 
-if (!archive.metadata.length) {
-  archive.metadata.on('sync', function() {
+archive.metadata.on('ready', function () {
+  if (!archive.metadata.length) {
+    archive.metadata.on('sync', function() {
+      c.flatten().each(item => console.log(item[0],item[1]))
+    })
+  } else {
     c.flatten().each(item => console.log(item[0],item[1]))
-  })
-} else {
-  c.flatten().each(item => console.log(item[0],item[1]))
-}
+  }
+})
 
 
 
