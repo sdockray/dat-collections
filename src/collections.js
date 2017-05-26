@@ -1,6 +1,7 @@
 import Promise from 'bluebird';
 import EventEmitter from 'events';
 import pda from 'pauls-dat-api/es5';
+import get from 'lodash/get';
 
 // Error handling for JSON parsing
 function jsonParse(str) {
@@ -14,35 +15,16 @@ function jsonParse(str) {
 // Given a path (through subcollections) in array form
 // ["collection A", "subcollection B", "subcollection C"]
 // Get the object at A/B/C
-function navigateJson(data, path, lastBranch = 'subcollections') {
-  if (!data) {
-    return {};
-  }
-  if (path.length===0) {
-    return (lastBranch === 'subcollections') ? data : [];
-  }
-  let obj = data;
-  const lastPath = path.pop();
-  // Navigate the tree, following the path up until the last part
-  for (const p of path) {
-    if (p in obj && 'subcollections' in obj[p]) {
-      obj = obj[p].subcollections;
-    } else {
-      obj = [];
-    }
-  }
-  // Get into position for going down the last branch
-  if (lastPath && lastPath in obj) {
-    obj = obj[lastPath];
-  } else if (lastPath) {
-    obj = [];
-  }
-  if (lastBranch === 'subcollections' && obj && lastBranch in obj) {
-    obj = obj.subcollections;
-  } else if (obj && lastBranch in obj) {
-    obj = obj[lastBranch];
-  }
-  return Promise.resolve(obj);
+export function navigateJson(data, paths, lastBranch = 'subcollections') {
+  if (!data) return {};
+  if (!Array.isArray(paths) || paths.length === 0 ) return data;
+  const subcollectionPaths = paths.reduce((p, path, index) => {
+    if (index < paths.length - 1) p.push(path, 'subcollections');
+    else p.push(path);
+    return p;
+  }, []);
+  const result = get(data, subcollectionPaths);
+  return  result[lastBranch] || result;
 }
 
 // Default export class
