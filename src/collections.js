@@ -4,11 +4,11 @@ import pda from 'pauls-dat-api/es5';
 
 // Error handling for JSON parsing
 function jsonParse(str) {
-  let parsed = null;
   try {
-    parsed = JSON.parse(str)
-  } catch (error) {}
-  return parsed;
+    return JSON.parse(str)
+  } catch (error) {
+    return null;
+  }
 }
 
 // Given a path (through subcollections) in array form
@@ -46,7 +46,7 @@ function navigateJson(data, path, lastBranch = 'subcollections') {
 }
 
 // Default export class
-export default class extends EventEmitter {
+export default class Collections extends EventEmitter {
   constructor(archive, opts) {
     super();
     if (!opts) opts = {}
