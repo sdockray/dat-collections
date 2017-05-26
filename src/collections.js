@@ -1,15 +1,6 @@
 import Promise from 'bluebird';
 import EventEmitter from 'events';
-import pda from 'pauls-dat-api';
-
-// Timeout for waiting
-const timeout = function (delay) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve()
-    }, delay)
-  })
-}
+import pda from 'pauls-dat-api/es5';
 
 // Error handling for JSON parsing
 function jsonParse(str) {
