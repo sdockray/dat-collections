@@ -19,7 +19,7 @@ export function navigateJson(data, path, lastBranch = 'subcollections') {
   if (!data) {
     return {};
   }
-  if (path.length === 0) {
+  if (typeof path !== 'object' || path.length === 0) {
     return (lastBranch === 'subcollections') ? data : [];
   }
   let obj = data;
@@ -43,7 +43,8 @@ export function navigateJson(data, path, lastBranch = 'subcollections') {
   } else if (obj && lastBranch in obj) {
     obj = obj[lastBranch];
   }
-  return Promise.resolve(obj);
+  // return Promise.resolve(obj);
+  return obj;
 }
 
 // Default export class

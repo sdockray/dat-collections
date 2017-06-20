@@ -29,13 +29,13 @@ describe('navigateJson function', () => {
   };
 
   it('returns the array of items if passed the path at root collection or tip of subcollections', () => {
-    expect(navigateJson(collectionJson, ['collection name 1']))
+    expect(navigateJson(collectionJson, ['collection name 1'], 'items'))
       .to.eql([
         'path/to/item 1',
         'path/to/item 2',
         'path/to/item 3',
       ]);
-    expect(navigateJson(collectionJson, ['collection name 2', 'subcollection name 2']))
+    expect(navigateJson(collectionJson, ['collection name 2', 'subcollection name 2'], 'items'))
       .to.eql([
         'path/to/item 2',
         'path/to/item 3',
@@ -65,10 +65,16 @@ describe('navigateJson function', () => {
     expect(navigateJson(0)).to.eql({});
   });
 
-  it('returns first arguement if path is not an array or is empty', () => {
+  it('returns first argument if path is not an array or is empty', () => {
     expect(navigateJson({ a: 'a' }, [])).to.eql({ a: 'a' });
     expect(navigateJson(collectionJson, 1)).to.eql(collectionJson);
     expect(navigateJson('woo', 'hello')).to.eql('woo');
+  });
+
+  it('returns empty array if path is not an array or is empty and expecting items', () => {
+    expect(navigateJson({ a: 'a' }, [], 'items')).to.eql([]);
+    expect(navigateJson(collectionJson, 1, 'items')).to.eql([]);
+    expect(navigateJson('woo', 'hello', 'items')).to.eql([]);
   });
 
 });
