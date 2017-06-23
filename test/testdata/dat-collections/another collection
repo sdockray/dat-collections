@@ -1,0 +1,27 @@
+{
+    "subcollections": [
+        {
+            "title": "First subcollection",
+            "contents": [
+                "Shakuntala Devi/The World of Homosexuals (68)"
+            ],
+            "subcollections": [
+                {
+                    "title": "A sub-sub-collection",
+                    "contents": [
+                        "PRABHAT PATNAIK/A Left Approach to Development (27)",
+                        "Gauri Viswanathan/Masks of Conquest_ Literary Studies and British Rule in India (92)"
+                    ]
+                }
+            ]
+        },
+        {
+          "title": "Second subcollection",
+          "contents": [
+            "Ranajit Guha/Elementary Aspects of Peasant Insurgency in Colonial India (24)",
+            "Ranajit Guha/The Small Voice of History (81)",
+            "Piya Chatterjee/A Time for Tea_ Women, Labor, and Post_Colonial Politics on an Indian Plantation (89)"
+          ]
+        }
+    ]
+}

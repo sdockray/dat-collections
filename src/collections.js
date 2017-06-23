@@ -1,6 +1,5 @@
+import path from 'path';
 import Promise from 'bluebird';
-import EventEmitter from 'events';
-import pda from 'pauls-dat-api/es5';
 import get from 'lodash/get';
 
 // Error handling for JSON parsing
@@ -12,108 +11,76 @@ function jsonParse(str) {
   }
 }
 
+const hasTitle = (arr, title) => arr.title === title;
+
 // Given a path (through subcollections) in array form
 // ["collection A", "subcollection B", "subcollection C"]
 // Get the object at A/B/C
-export function navigateJson(data, path, lastBranch = 'subcollections') {
-  if (!data) {
-    return {};
-  }
-  if (typeof path !== 'object' || path.length === 0) {
-    return (lastBranch === 'subcollections') ? data : [];
-  }
-  let obj = data;
-  const lastPath = path.pop();
-  // Navigate the tree, following the path up until the last part
-  for (const p of path) {
-    if (p in obj && 'subcollections' in obj[p]) {
-      obj = obj[p].subcollections;
-    } else {
-      obj = [];
-    }
-  }
-  // Get into position for going down the last branch
-  if (lastPath && lastPath in obj) {
-    obj = obj[lastPath];
-  } else if (lastPath) {
-    obj = [];
-  }
-  if (lastBranch === 'subcollections' && obj && lastBranch in obj) {
-    obj = obj.subcollections;
-  } else if (obj && lastBranch in obj) {
-    obj = obj[lastBranch];
-  }
-  // return Promise.resolve(obj);
-  return obj;
+export function navigateJson(data, paths, lastBranch = 'contents', defaultVal = '') {
+  if (!data) return {};
+  if (typeof paths === 'string') return navigateJson(data, [], paths, lastBranch);
+  if (!Array.isArray(paths) || paths.length === 0) return data[lastBranch] || defaultVal;
+  const subcollectionPaths = paths.reduce((p, path) => {
+    p.push('subcollections');
+    const idx = get(data, p).findIndex(element => element.title === path);
+    if (idx >= 0) p.push(idx);
+    return p;
+  }, []);
+  const result = get(data, subcollectionPaths);
+  return result[lastBranch] || defaultVal;
 }
 
-// Default export class
-export default class Collections extends EventEmitter {
-  constructor(archive, opts) {
-    super();
-    if (!opts) opts = {}
+
+export class Collection {
+  constructor(archive, filename) {
     this.archive = archive;
-    this.fileName = opts.file ? '/' + opts.file : '/dat-collections.json';
-    this.data = false;
-    this.pollingInterval = 1000;
-    // Initialize data and listener
-    this.archive.metadata.on('ready', () => {
-      if (this.archive.metadata.length) {
-        this.listen();
-        this.loadData();
-      } else {
-        this.archive.metadata.once('sync', () => this.listen());
-        this.archive.metadata.on('sync', () => this.loadData());
-      }
-    });
+    this.filename = filename;
+    this.data = {};
+  }
+  init() {
+    console.log('initializing');
+    return this.loadData().then(() => this);
   }
 
-  // Gets a list of top level collections
-  list() {
-    return this.ensureData().then(data => Object.keys(this.data));
+  title(...path) {
+    return this.ensureData()
+    .then(data => navigateJson(data, ...path, 'title', ''));
   }
 
-  // Gets all items below a certain point in subcollection tree
-  allItems(...path) {
-    const theItems = [];
-    return this.items(...path)
-      .then(items => theItems.push(...items))
-      .then(() => this.subcollections(...path))
-      .map(subcollection => this.allItems(...path, subcollection))
-      .each(subItems => theItems.push(...subItems))
-      .then(() => theItems);
+  description(...path) {
+    return this.ensureData()
+    .then(data => navigateJson(data, ...path, 'description', ''));
   }
 
   // Gets the items for a given (sub)collection. It won't get any items inside
   // its subcollections. It only returns items at this level
-  items(...path) {
+  contents(...path) {
     return this.ensureData()
-      .then(data => navigateJson(data, path, 'items'));
+    .then(data => navigateJson(data, ...path, 'contents', []));
   }
 
   // Gets the subcollections at a certain path
   subcollections(...path) {
     return this.ensureData()
-      .then(data => navigateJson(data, path))
-      .then(obj => (!!obj && obj.constructor === Object) ? Object.keys(obj) : []);
-  }
-
-  // Gets the entire contents (items & subcollections) of a single collection
-  get(name) {
-    return this.ensureData().then(data => data[name]);
+    .then(data => navigateJson(data, ...path, 'subcollections', []))
+    .map(subcollection => subcollection.title);
   }
 
   // A flat array of  [{item: path}, ...] which is helpful for building reverse lookup index
   flatten(...path) {
     const theItems = [];
-    return this.items(...path)
+    return this.contents(path)
       .map(item => [item, path])
       .then(items => theItems.push(...items))
-      .then(() => this.subcollections(...path))
+      .then(() => this.subcollections(path))
       .map(subcollection => this.flatten(...path, subcollection))
       .each(subItems => theItems.push(...subItems))
       .then(() => theItems);
   }
+
+  // add(filename, subcollection) {}
+
+  // remove(filename) {}
 
   // Private
   // Every data access method should ensure that the data exists
@@ -125,35 +92,102 @@ export default class Collections extends EventEmitter {
     }
   }
 
-  async loadData() {
-    try {
-      const contents = await pda.readFile(this.archive, this.fileName);
-      this.data = jsonParse(contents);
-      this.emit('loaded', this)
+  // Loads the file into the data object
+  loadData() {
+    const readAsync = Promise.promisify(this.archive.readFile, { context: this.archive });
+    return readAsync(this.filename, 'utf-8')
+    .then((data) => {
+      this.data = jsonParse(data);
       return this.data;
-    } catch (NotFoundError) {
-      console.log('File not found in archive: ' + this.fileName);
-      console.log('If the hyperdrive has just been created, this could be a bug where dat-collections isn\'t waiting for the metadata to be loaded');
-      return [];
-      // console.log(error);
-    }
+    });
   }
 
-  listen() {
-    try {
-      const fas = pda.createFileActivityStream(this.archive, this.fileName);
-      console.log(`listening for changes to ${this.fileName}`);
-      if (fas) {
-        fas.on('data', ([event, args]) => {
-          if (event === 'changed') {
-            this.loadData()
-              .then(() => this.emit('updated', this));
-          }
-        });
-      }
-    } catch (e) {
-      this.archive.on('ready', () => this.listen());
-    }
+}
+
+// Default export class
+export default class Collections {
+  constructor(archive, dirname) {
+    this.archive = archive;
+    this.directory = dirname;
+    this.data = [];
   }
 
+  init() {
+    console.log('initializing');
+    return this.list()
+    .then(files => console.log(`Found ${files.length} collections.`))
+    .then(() => this);
+  }
+
+  list() {
+    const readdirAsync = Promise.promisify(this.archive.readdir, { context: this.archive });
+    return readdirAsync(this.directory)
+      .catch(() => console.log(`There is no collections directory here: ${this.filesDir}`));
+  }
+
+  loadCollection(filename) {
+    return createCollection(this.archive, path.join(this.directory, filename));
+  }
+
+}
+
+// There are 3 ways a collection can be created:
+// A. Archive is writeable, filename doesn't exist
+// B. Archive is writeable, filename already exists
+// C. Archive is not writeable, filename exists
+export function createCollection(archive, filename) {
+  const statAsync = Promise.promisify(archive.stat, { context: archive });
+  return statAsync(filename)
+  .then((stat) => {
+    // It exists!
+    if (stat.isFile()) {
+      console.log('collection exists, loading');
+      const c = new Collection(archive, filename);
+      return c.init();
+    }
+    // It's a directory...
+    console.log('Error: this is a directory');
+    return Promise.reject();
+  })
+  .catch(() => {
+    // It doesn't exist, but it is our archive, so let's create it
+    if (archive.writeable) {
+      console.log('collection does not exist, creating');
+      const writeAsync = Promise.promisify(archive.writeFile, { context: archive });
+      writeAsync(filename, '', 'utf-8')
+      .then(() => {
+        const c = new Collection(archive, filename);
+        return c.init();
+      });
+    }
+    // It doesn't exist and we don't have write access to it
+    console.log('collection does not exist, no permission to create');
+    return Promise.reject();
+  });
+}
+
+export function openCollections(archive, dir) {
+  const statAsync = Promise.promisify(archive.stat, { context: archive });
+  return statAsync(dir)
+  .then((stat) => {
+    // It exists!
+    if (stat.isDirectory()) {
+      console.log('collections directory exists, loading');
+      const c = new Collections(archive, dir);
+      return c.init();
+    }
+    // It's not a directory...
+    console.log('Error: this is not a directory');
+    return Promise.reject();
+  })
+  .catch(() => {
+    // It doesn't exist, but it is our archive, so let's create it
+    if (archive.writeable) {
+      console.log('collections directory does not exist, creating');
+      // @TODO
+    }
+    // It doesn't exist and we don't have write access to it
+    console.log('collections directory does not exist, no permission to create');
+    return Promise.reject();
+  });
 }
