@@ -1,4 +1,4 @@
-import path from 'path';
+import path_ from 'path';
 import Promise from 'bluebird';
 import get from 'lodash/get';
 
@@ -126,7 +126,7 @@ export default class Collections {
   }
 
   loadCollection(filename) {
-    return createCollection(this.archive, path.join(this.directory, filename));
+    return createCollection(this.archive, path_.join(this.directory, filename));
   }
 
 }
